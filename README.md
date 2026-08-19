@@ -11,4 +11,4 @@ This repository contains the study notes for learning PyTorch while taking the f
 
 ## License
 
-Unless otherwise noted, the notes in this repository are licensed under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License (CC BY-NC-ND 4.0)](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+Unless otherwise noted, the notes in this repository are licensed under a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
