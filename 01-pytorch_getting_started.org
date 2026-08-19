@@ -1,0 +1,846 @@
+# -*- mode: org -*-
+# -*- coding: utf-8 -*-
+#+TITLE:       PyTorch getting started
+#+AUTHOR:      tengssh
+#+LANGUAGE:    en
+#+STARTUP:     indent
+#+TAGS: Preview(P) Questions(Q) Read(R) Recite(T) Reflect(F) Review(V)
+#+TAGS: Code(C) Visualization(V) noexport(n)
+#+OPTIONS: toc:3
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport inlineimages
+#+COLUMNS: %25ITEM %TODO %3PRIORITY %TAGS
+#+PROPERTY: header-args:python :async yes :python .pixi/envs/default/bin/python3 
+
+* Subject: PyTorch getting started                                  :Preview:
+** Resources
+- PyToch
+  - https://cognitiveclass.ai/courses/pytorch-tensor-dataset-and-data-augmentation
+  - https://cognitiveclass.ai/courses/linear-regression-with-pytorch
+  - https://cognitiveclass.ai/courses/getting-started-with-machine-learning-with-pytorch
+- Landau model
+  - https://shenghanteng.gitlab.io/ComplexPhaseTransition_SoSe2022/#/9/9
+** Keywords
+- Machine learning
+- Linear regression
+- Python
+  - PyTorch
+  - NumPy
+  - Pandas
+  - Matplotlib
+** Time duration: 14 hrs
+- 2026.8.17: 7 hrs
+- 2026.8.18: 3+1 hrs
+- 2026.8.19: 3 hrs
+** Prerequisites
+#+begin_src shell :session *shell* :results output :exports both
+alias pixi="apptainer exec /containers/base/utilities_ubuntu.sif pixi "
+pixi --version
+#+end_src
+
+#+RESULTS:
+: pixi 0.73.0
+
+#+begin_src shell :session *shell* :results output :exports both
+pixi init --format pixi
+pixi add python=3.11
+pixi add pytorch torchvision
+#+end_src
+
+#+RESULTS:
+: ✔ Created /hands-on-pytorch/pixi.toml
+: ✔ Added python=3.11
+: =2.13.0,<3
+: =0.28.0,<0.29
+
+#+begin_src shell :session *shell* :results output :exports both
+pixi add numpy matplotlib
+#+end_src
+
+#+RESULTS:
+#+begin_example
+=2.4.6,<3
+=3.11.1,<4
+#+end_example
+
+#+begin_src shell :session *shell* :results output :exports both
+pixi add pandas
+#+end_src
+
+#+RESULTS:
+: =3.0.5,<4
+
+#+begin_src shell :results output :exports both
+cat pixi.toml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[workspace]
+channels = ["conda-forge"]
+name = "hands-on-pytorch"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.11.*"
+pytorch = ">=2.13.0,<3"
+torchvision = ">=0.28.0,<0.29"
+numpy = ">=2.4.6,<3"
+matplotlib = ">=3.11.1,<4"
+pandas = ">=3.0.5,<4"
+#+end_example
+
+* Notes                                                                :Read:
+** 2026.08.17
+*** PyTorch basics
+**** Import library
+#+begin_src python :results output :session *python* :exports both
+import torch
+#+end_src
+
+#+RESULTS:
+**** Create tensors
+#+begin_src python :results output :session *python* :exports both
+a = torch.tensor(1.0, requires_grad = True)
+b = torch.tensor(2.0, requires_grad = True)
+c = torch.tensor([1.0, 2.0], requires_grad = True)
+d = torch.tensor([[1.0], [2.0]], requires_grad = True)
+e = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], requires_grad = True)
+for _i in [a, b, c, d, e]:
+    print(_i)
+    print(_i.shape) # _i.size()
+#+end_src
+
+#+RESULTS:
+#+begin_example
+tensor(1., requires_grad=True)
+torch.Size([])
+tensor(2., requires_grad=True)
+torch.Size([])
+tensor([1., 2.], requires_grad=True)
+torch.Size([2])
+tensor([[1.],
+        [2.]], requires_grad=True)
+torch.Size([2, 1])
+tensor([[1., 2., 3.],
+        [4., 5., 6.]], requires_grad=True)
+torch.Size([2, 3])
+#+end_example
+
+#+begin_src python :results output :session *python* :exports both
+y = lambda x: a + b * x
+print(y(c), y(c).shape == c.shape)
+print(y(d), y(d).shape == d.shape)
+print(y(e), y(e).shape == e.shape)
+#+end_src
+
+#+RESULTS:
+: tensor([3., 5.], grad_fn=<AddBackward0>) True
+: tensor([[3.],
+:         [5.]], grad_fn=<AddBackward0>) True
+: tensor([[ 3.,  5.,  7.],
+:         [ 9., 11., 13.]], grad_fn=<AddBackward0>) True
+**** Useful torch functions
+***** =torch.arange=
+#+begin_src python :results output :session *python* :exports both
+xdata = torch.arange(-1, 1, 0.5)
+print(xdata, xdata.shape)
+xdata = torch.arange(0, 10, 1)
+print(xdata, xdata.shape)
+xdata_rs = torch.arange(0, 10, 1).view(-1, 5)
+print(xdata_rs, xdata_rs.shape)
+#+end_src
+
+#+RESULTS:
+: tensor([-1.0000, -0.5000,  0.0000,  0.5000]) torch.Size([4])
+: tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) torch.Size([10])
+: tensor([[0, 1, 2, 3, 4],
+:         [5, 6, 7, 8, 9]]) torch.Size([2, 5])
+***** =torch.randn=
+#+begin_src python :results output :session *python* :exports both
+rnd = torch.randn(1)
+print(rnd, rnd.size())
+rnd = torch.randn(2)
+print(rnd, rnd.size())
+rnd = torch.randn(e.size())
+print(rnd, rnd.size())
+#+end_src
+
+#+RESULTS:
+: tensor([-0.3670]) torch.Size([1])
+: tensor([-1.0389,  0.1121]) torch.Size([2])
+: tensor([[ 0.9824, -1.2668,  1.3685],
+:         [ 0.2054,  0.7783,  0.2566]]) torch.Size([2, 3])
+
+#+begin_src python :results output :session *python* :exports both
+torch.manual_seed(0) # set a random seed for reproducible results
+rnd = torch.randn(1)
+print(rnd.numpy())
+print(rnd == torch.tensor([1.5409961]))
+#+end_src
+
+#+RESULTS:
+: [1.5409961]
+: tensor([True])
+***** =torch.mean=
+#+begin_src python :results output :session *python* :exports both
+avg = torch.mean(e)
+print(e)
+print(avg)
+#+end_src
+
+#+RESULTS:
+: tensor([[1., 2., 3.],
+:         [4., 5., 6.]], requires_grad=True)
+: tensor(3.5000, grad_fn=<MeanBackward0>)
+***** =torch.mm=
+#+begin_src python :results output :session *python* :exports both
+A = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+B = torch.tensor([[1.0], [0.0]])
+C = torch.mm(A, B)
+print(C)
+print(A.shape, B.shape, C.shape)
+#+end_src
+
+#+RESULTS:
+: tensor([[1.],
+:         [3.],
+:         [5.]])
+: torch.Size([3, 2]) torch.Size([2, 1]) torch.Size([3, 1])
+
+*** Linear regression
+**** Create model
+#+begin_src python :results output :session *python* :exports both
+from torch import nn
+
+class Landau_model(nn.Module):
+    def __init__(self, a0, b, d, T):
+        super(Landau_model, self).__init__()
+        self.a0 = nn.Parameter(torch.tensor(a0))
+        self.b = nn.Parameter(torch.tensor(b))
+        self.d = nn.Parameter(torch.tensor(d))
+        self.T = nn.Parameter(torch.tensor(T))
+        self.Tc = torch.tensor(300.0)
+
+    def forward(self, x):
+        yhat = self.a0 * (self.T - self.Tc) * x**2 \
+            + self.b * x**4 \
+            + self.d * x**6
+        return yhat
+
+lm = Landau_model(a0=0.01, b=-1.1, d=1.0, T=300.0)
+print("# Parameters")
+print(list(lm.parameters()))
+print(lm.state_dict().keys())
+print(lm.state_dict().values())
+
+x_p = torch.tensor(0.0)
+y_e = lm(x_p)
+print("# P = 0")
+print(y_e)
+
+x_p = torch.tensor([-1.0, 1.0])
+y_e = lm(x_p)
+print("# P = [-1.0, 1.0]")
+print(y_e)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+# Parameters
+[Parameter containing:
+tensor(0.0100, requires_grad=True), Parameter containing:
+tensor(-1.1000, requires_grad=True), Parameter containing:
+tensor(1., requires_grad=True), Parameter containing:
+tensor(300., requires_grad=True)]
+odict_keys(['a0', 'b', 'd', 'T'])
+odict_values([tensor(0.0100), tensor(-1.1000), tensor(1.), tensor(300.)])
+# P = 0
+tensor(0., grad_fn=<AddBackward0>)
+# P = [-1.0, 1.0]
+tensor([-0.1000, -0.1000], grad_fn=<AddBackward0>)
+#+end_example
+
+**** Create data/plot modules
+#+begin_src python :results output :session *python* :exports both
+from torch.utils.data import Dataset, DataLoader
+
+class Data(Dataset):
+    def __init__(self, if_outlier=False, seed=0):
+        torch.manual_seed(seed)
+        x = torch.arange(-1.2, 1.2, 0.01).view(-1, 1) 
+        a0 = torch.tensor(0.01)
+        b = torch.tensor(-1.1)
+        d = torch.tensor(1.0)
+        Tc = torch.tensor(300.0)
+        T = 320 # Tc + b**2 / (4 * a0 * d)
+        model = lambda x: a0 * (T - Tc) * x**2 + b * x**4 + d * x**6
+        self.x = x
+        self.f = model(x)
+        self.y = self.f + 0.05 * torch.rand(self.x.size()) - 0.025 
+        self.len = self.x.shape[0]
+        if if_outlier:
+            self.y[int(self.len * 0.49)] = -0.1
+            self.y[int(self.len * 0.5)] = -0.1
+            self.y[int(self.len * 0.51)] = -0.1
+        
+    def __getitem__(self, index):    
+        return self.x[index], self.y[index]
+    
+    def __len__(self):
+        return self.len
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :results output :session *python* :exports both
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+class Plot():
+    def __init__(self, X, Y, f):
+        self.X = X.detach().numpy()
+        self.Y = Y.detach().numpy()
+        self.f = f.detach().numpy()
+        
+    def __call__(self, Yhat = None, fig_out = None):
+        plt.figure(figsize=(5, 4), dpi=300)
+        plt.plot(self.X, self.Y, '.', label='Data')
+        plt.plot(self.X, self.f, '-', label='Target')
+        if Yhat is not None:
+            plt.plot(self.X, Yhat.detach().numpy(), '-', label='Fit')
+        plt.ylim([-0.25, 0.25])
+        plt.title('$F(P)=A_0(T-T_C)P^{2}+BP^{4}+DP^{6}$')
+        plt.xlabel('$P$ (arb.)')
+        plt.ylabel('$F(P)$ (arb.)')
+        plt.legend()
+        plt.axhline(y=0, ls='--', c='k')
+        plt.tight_layout()
+        if isinstance(fig_out, str):
+            plt.savefig(fig_out, dpi=200)
+            print(f"#+ATTR_ORG: :width 500")
+            print(f"[[file:{fig_out}]]")
+            plt.close()
+        else:
+            plt.show()
+    
+    def __del__(self):
+        plt.close('all')
+#+end_src
+
+#+RESULTS:
+
+**** Train models
+#+begin_src python :results output :session *python* :exports both
+from torch import nn, optim
+
+def mse(yhat, y):
+    return nn.MSELoss()(yhat, y)
+
+def train_model(data, model, epochs, lr=0.1, batch_size=1):
+    dataloader = DataLoader(dataset=data, batch_size=batch_size)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+    for epoch in range(epochs):
+        LOSS = []
+        for x, y in dataloader:
+            yhat = model(x)
+            loss = mse(yhat, y)
+            LOSS.append(loss.item())
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+    return LOSS
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :results graphics output drawer :session *python* :exports both
+data_train = Data(seed=0, if_outlier=False)
+data_valid = Data(seed=42, if_outlier=False)
+plot_data = Plot(data_train.x, data_train.y, data_train.f)
+plot_data(fig_out='fig_data.png')
+
+# Hyperparameters
+epochs = 100
+bs_list = [1, 5, 10, 20]
+lr_list = [0.01, 0.05, 0.1]
+Models = []
+LOSS_train = []
+i = 0
+for bs in bs_list:
+    for lr in lr_list:
+        model = Landau_model(a0=0.01, b=-1.1, d=1.0, T=310.0)
+        LOSS = train_model(data_train, model, epochs, lr, bs)
+        loss = LOSS[-1]
+        print(f'# Model {i} (bs = {bs}, lr = {lr})')
+        if not np.isnan(loss):
+            print(f'MSE = {loss} ({len(LOSS)} iterations)')
+            print(model.state_dict())
+            #plot_data(model(data_train.x), f'fig_model_lr{lr}_bs{bs}.png')
+        Models.append(model)
+        LOSS_train.append(LOSS)
+        i += 1
+#+end_src
+
+#+RESULTS:
+:results:
+#+ATTR_ORG: :width 500
+[[file:fig_data.png]]
+# Model 0 (bs = 1, lr = 0.01)
+MSE = 0.0016590299783274531 (240 iterations)
+OrderedDict([('a0', tensor(4.8239)), ('b', tensor(-0.6250)), ('d', tensor(1.5183)), ('T', tensor(299.6866))])
+# Model 1 (bs = 1, lr = 0.05)
+# Model 2 (bs = 1, lr = 0.1)
+# Model 3 (bs = 5, lr = 0.01)
+MSE = 0.008581282570958138 (48 iterations)
+OrderedDict([('a0', tensor(-0.0029)), ('b', tensor(-1.0913)), ('d', tensor(1.0345)), ('T', tensor(308.8922))])
+# Model 4 (bs = 5, lr = 0.05)
+# Model 5 (bs = 5, lr = 0.1)
+# Model 6 (bs = 10, lr = 0.01)
+MSE = 0.00023874241742305458 (24 iterations)
+OrderedDict([('a0', tensor(0.0191)), ('b', tensor(-1.0999)), ('d', tensor(0.9985)), ('T', tensor(309.9985))])
+# Model 7 (bs = 10, lr = 0.05)
+# Model 8 (bs = 10, lr = 0.1)
+# Model 9 (bs = 20, lr = 0.01)
+MSE = 0.0006283249822445214 (12 iterations)
+OrderedDict([('a0', tensor(0.0262)), ('b', tensor(-1.1040)), ('d', tensor(0.9853)), ('T', tensor(309.9988))])
+# Model 10 (bs = 20, lr = 0.05)
+# Model 11 (bs = 20, lr = 0.1)
+:end:
+
+**** Compare loss
+#+begin_src python :results graphics output drawer :session *python* :exports both
+import numpy as np
+
+plt.figure(figsize=(4,3), dpi=300)
+i = 0
+for bs in bs_list:
+    for lr in lr_list:
+        if not np.isnan(LOSS_train[i][-1]):
+            plt.plot(LOSS_train[i], label=f'bs = {bs}, lr = {lr}')
+        i += 1
+plt.xlabel("Iterations")
+plt.ylabel("Loss (train)")
+plt.legend()
+plt.tight_layout()
+fig_out = f'fig_loss_train.png'
+plt.savefig(fig_out)
+print(f"#+ATTR_ORG: :width 500")
+print(f"[[file:{fig_out}]]")
+plt.close()
+#+end_src
+
+#+RESULTS:
+:results:
+#+ATTR_ORG: :width 500
+[[file:fig_loss_train.png]]
+:end:
+
+**** Validate models
+#+begin_src python :results graphics output drawer :session *python* :exports both
+i = 0
+LOSS_valid = []
+for bs in bs_list:
+    for lr in lr_list:
+        print(f'# Model {i} (lr = {lr}, bs = {bs}')
+        model = Models[i]
+        model.eval()
+        loss = mse(model(data.x), data.y).item()
+        LOSS_valid.append(loss)
+        if not np.isnan(loss):
+            print(f'Train / Validation errors:\t{LOSS_train[i][-1]}\t{loss}')
+        i += 1
+
+idx_final = np.nanargmin(LOSS_valid)
+model_final = Models[idx_final]
+print(f'==> Model {idx_final}')
+print(model_opt.state_dict())
+plot_data(model_opt(data_train.x), 'fig_model_final.png')
+#+end_src
+
+#+RESULTS:
+:results:
+# Model 0 (lr = 0.01, bs = 1
+Train / Validation errors:	0.0016590299783274531	0.24147339165210724
+# Model 1 (lr = 0.05, bs = 1
+# Model 2 (lr = 0.1, bs = 1
+# Model 3 (lr = 0.01, bs = 5
+Train / Validation errors:	0.008581282570958138	0.013292839750647545
+# Model 4 (lr = 0.05, bs = 5
+# Model 5 (lr = 0.1, bs = 5
+# Model 6 (lr = 0.01, bs = 10
+Train / Validation errors:	0.00023874241742305458	0.0003715736966114491
+# Model 7 (lr = 0.05, bs = 10
+# Model 8 (lr = 0.1, bs = 10
+# Model 9 (lr = 0.01, bs = 20
+Train / Validation errors:	0.0006283249822445214	0.0011578125413507223
+# Model 10 (lr = 0.05, bs = 20
+# Model 11 (lr = 0.1, bs = 20
+==> Model 6
+OrderedDict([('a0', tensor(0.0191)), ('b', tensor(-1.0999)), ('d', tensor(0.9985)), ('T', tensor(309.9985))])
+#+ATTR_ORG: :width 500
+[[file:fig_model_final.png]]
+:end:
+** 2026.08.19
+*** Tensors
+**** Import libraries
+#+begin_src python :results output :session *python* :exports both
+import torch
+import numpy as np
+import pandas as pd
+#+end_src
+
+#+RESULTS:
+**** Tensor types
+#+begin_src python :results output :session *python* :exports both
+t = torch.tensor([1, 2])
+print(t.type())
+print(t.dtype)
+t_f = t.type(torch.FloatTensor)
+print(t_f.type())
+print(t_f.dtype)
+#+end_src
+
+#+RESULTS:
+: torch.LongTensor
+: torch.int64
+: torch.FloatTensor
+: torch.float32
+**** Tensor attributes
+#+begin_src python :results output :session *python* :exports both
+t = torch.linspace(0, 10, 10)
+print(t.numel())
+print(t.ndimension())
+print(t.size())
+t_s = t.view(-1, 2)
+print(t_s.ndimension())
+print(t_s.size())
+#+end_src
+
+#+RESULTS:
+: 10
+: 1
+: torch.Size([10])
+: 2
+: torch.Size([5, 2])
+
+#+begin_src python :results output :session *python* :exports both
+x = torch.tensor(0., requires_grad=True)
+print(x.data)
+print(x.grad_fn)
+print(x.grad)
+print(x.is_leaf)
+print(x.requires_grad)
+#+end_src
+
+#+RESULTS:
+: tensor(0.)
+: None
+: None
+: True
+: True
+
+**** Conversion
+#+begin_src python :results output :session *python* :exports both
+np_ary = np.array([0, 1, 2])
+print(np_ary)
+pd_ary = pd.DataFrame({'col0': [0], 'col1': [1], 'col2': [2]})
+print(pd_ary)
+pd2np = pd_ary.values
+print(pd2np.dtype, pd2np)
+np2th = torch.from_numpy(np_ary)
+print(np2th.dtype, np2th)
+th2np = np2th.numpy()
+print(th2np.dtype, th2np)
+th2list = np2th.tolist()
+print(type(th2list), th2list)
+th2py = np2th[0].item()
+print(type(th2py), th2py)
+#+end_src
+
+#+RESULTS:
+: [0 1 2]
+:    col0  col1  col2
+: 0     0     1     2
+: int64 [[0 1 2]]
+: torch.int64 tensor([0, 1, 2])
+: int64 [0 1 2]
+: <class 'list'> [0, 1, 2]
+: <class 'int'> 0
+**** Tensor operations
+#+begin_src python :results output :session *python* :exports both
+A = torch.tensor([[1, 2], [3, 4]])
+B = torch.tensor([[1.], [-1.]])
+C = torch.tensor([0, np.pi/2., np.pi])
+print(A.min(), A.max())
+print(B.mean(), B.std())
+print(torch.sin(C))
+print(torch.cos(C))
+#+end_src
+
+#+RESULTS:
+: tensor(1) tensor(4)
+: tensor(0.) tensor(1.4142)
+: tensor([ 0.0000e+00,  1.0000e+00, -8.7423e-08])
+: tensor([ 1.0000e+00, -4.3711e-08, -1.0000e+00])
+*** Differentiation
+#+begin_src python :results output :session *python* :exports both
+t = np.linspace(-1.0, 1.0, 3)
+x = torch.tensor(t, requires_grad=True)
+y = torch.tensor(t, requires_grad=True)
+print('===')
+print(x.data)
+print(x.grad_fn)
+print(x.grad)
+print(x.is_leaf)
+print(x.requires_grad)
+
+z = x**3 + y**2
+z.backward(gradient=torch.ones(t.shape)) # z.sum().backward()
+print('===')
+print(z.data)
+print(z.grad_fn)
+print(z.grad)
+print(z.is_leaf)
+print(z.requires_grad)
+
+print('===')
+print(x.grad) # 3*x**2
+print(y.grad) # 2*y
+#+end_src
+
+#+RESULTS:
+#+begin_example
+===
+tensor([-1.,  0.,  1.], dtype=torch.float64)
+None
+None
+True
+True
+===
+tensor([0., 0., 2.], dtype=torch.float64)
+<AddBackward0 object at 0x7ff4fb47e260>
+None
+False
+True
+===
+tensor([3., 0., 3.], dtype=torch.float64)
+tensor([-2.,  0.,  2.], dtype=torch.float64)
+#+end_example
+*** Dataset & Transforms
+**** Create dataset
+#+begin_src python :results output :session *python* :exports both
+from torch.utils.data import Dataset
+
+class OddNum(Dataset):
+    def __init__(self, transform=None):
+        self.x = torch.linspace(0., 5., 6)
+        self.y = torch.linspace(1., 11., 6)
+        if transform:
+            sample = self.x, self.y
+            _x, _y = transform(sample)
+            self.x = _x
+            self.y = _y
+        self.len = self.x.shape[0]
+
+    def __getitem__(self, index):
+        return self.x[index], self.y[index]
+
+    def __len__(self):
+        return self.len
+
+data = OddNum()
+print(data[0:3])
+#+end_src
+
+#+RESULTS:
+: (tensor([0., 1., 2.]), tensor([1., 3., 5.]))
+**** Compose transforms
+#+begin_src python :results output :session *python* :exports both
+from torchvision import transforms
+
+class add:
+    def __init__(self, i=0, j=0):
+        self.i = i
+        self.j = j
+
+    def __call__(self, sample):
+        x, y = sample
+        x += self.i
+        y += self.j
+        return x, y
+
+class power:
+    def __init__(self, j=0):
+        self.j = j
+
+    def __call__(self, sample):
+        x, y = sample
+        y = y**self.j
+        return x, y
+
+data1 = OddNum(transform=add(i=0, j=3))
+print(data1[:])
+data2 = OddNum(transform=power(j=2))
+print(data2[:])
+comb = transforms.Compose([add(i=1, j=-1), power(j=3)])
+data3 = OddNum(transform=comb)
+print(data3[:])
+#+end_src
+
+#+RESULTS:
+: (tensor([0., 1., 2., 3., 4., 5.]), tensor([ 4.,  6.,  8., 10., 12., 14.]))
+: (tensor([0., 1., 2., 3., 4., 5.]), tensor([  1.,   9.,  25.,  49.,  81., 121.]))
+: (tensor([1., 2., 3., 4., 5., 6.]), tensor([   0.,    8.,   64.,  216.,  512., 1000.]))
+
+* Cue                                                    :Questions:Recite:
+** Syntax: tensor attributes
+- =shape=, =size()=
+- =ndimension()=
+- =type=
+- =dtype=
+- =data=
+- =grad_fn=
+- =is_leaf=
+- =requires_grad=
+** Syntax: reshape a PyTorch tensor
+- =torch.arange(-3, 3, 0.1).view(-1, 1)=
+- =torch.linspace(1, 10).view(5, -1)=
+** Syntax: dot products
+- =torch.dot(A, B)=
+** Syntax: matrix multiplication
+- =torch.mm(A, B)=
+** Syntax: minimum/maximum
+- =torch.min(data)=
+- =torch.max(data)=
+** Syntax: trigonometric functions
+- =torch.sin(data)=
+- =torch.cos(data)=
+** Syntax: average/stadard deviation
+- =torch.mean(data)=
+- =torch.std(data)=
+- =data= must be floating point or complex dtype
+** Syntax: random seed
+- =torch.manual_seed(0)=
+** Syntax: download datasets (e.g., MINST)
+#+begin_src python
+from torchvision import datasets
+from torchvision.transforms import ToTensor
+training_data = datasets.MNIST(
+    root="data",
+    train=True,
+    download=True,
+    transform=ToTensor(),
+)
+#+end_src
+** Key components of custom dataset
+- Constructor: =__init__=
+- Item indexing: =__getitem__(self. index)=
+- Length: =__len__=
+** Key components of custom data transforms
+- Constructor: =__init__=
+- Executor: =__call__(self, sample)=
+** Syntax: compose transforms
+#+begin_src python
+from torchvision import transforms
+
+data_transform = transforms.Compose([tf1(), tf2()])
+data_new = data_transform(data_old) 
+#+end_src
+** Syntax: data loader
+#+begin_src python
+from torch.utils.data import DataLoader
+dataloader = DataLoader(dataset=data, batch_size=1)
+#+end_src
+** Syntax: optimizers
+#+begin_src python
+from torch import optim
+optimizer = optim.SGD(model.parameters(), lr = 0.01)
+optimizer = optim.Adam(model.parameters(), lr = 0.01)
+#+end_src
+** Syntax: loss functions
+- =loss = nn.MSELoss()(yhat, y)=
+- =loss = nn.CrossEntropyLoss()(yhat, y)=
+** Definition of SGD
+- Optimize loss using 1 sample per iteration
+** The number of iterations per each epoch
+- =iterations= = =total_samples= / =batch_size=
+** Training workflows
+| Objectives               | Built-in                                            | Manual implementation                                    |
+| Linear models            | =f = torch.nn.Linear(INPUT_SIZE, OUTPUT_SIZEE)=       | =f = lambda x: w * x + b=                                  |
+| Calculate loss           | =loss = torch.nn.MSEloss()(yhat, y)=                  | =loss = torch.mean((yhat - y)**2)=                         |
+| Use BGD                  | Use the whole samples/epoch                         | Use the whole samples/epoch                              |
+| Use SGD                  | =optimizer = optim.SGD(model.parameters(), lr = 0.1)= | Loop over each sample/epoch                              |
+| Use mini-batch SGD       | DataLoader + SGD                                    | Loop over each sample/epoch                              |
+| Run backward propagation | 1. =loss.backward()=                                  | 2. =loss.backward()=                                       |
+| Update parameters        | 2. =optimizer.step()=                                 | 3. =p.data = p.data - lr * p.grad.data= , where =p = {w, b}= |
+| Zero gradients           | 3. =optimizer.zero_grad()=                            | 1. =p.grad.data.zero_()=                                   |
+** Purpose of training data & validation data
+- Training data is used to train models, whereas validation data is used to obtain hyperparameters.
+** Syntax: finding the best model with the minimal validation error
+- =Models[np.argmin(validation_errors)]=
+** Syntax: define & assign device
+#+begin_src python
+# CPU
+device = torch.device("cpu")
+# NVIDIA GPU
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+# Apple GPU
+if torch.backends.mps.is_available()
+    device = torch.device("mps")
+# For model
+model = NeuralNetworkModule(PARAMS).to(device)
+# For data
+X, y = X.to(device), y.to(device)
+#+end_src
+** Syntax: define model with sequential layers
+#+begin_src python
+model = nn.Sequential(
+            nn.Linear(input_size, hidden1_size),
+            nn.ReLU(),
+            nn.Linear(hidden1_size, hidden2_size),
+            nn.Softmax(),
+            nn.Linear(hidden2_size, hidden3_size),
+            nn.Tanh(),
+            nn.Linear(hidden3_size, num_classes)
+        )
+#+end_src
+** Syntax: flatten high-dimensional data
+- =nn.Flatten()(IMAGE_TENSOR)=
+** Syntax: training mode
+- =model.train()=
+** Purpose of the training mode
+- Enables dropout and batch normalization layers
+** Syntax: evaluation mode
+- =model.eval()=
+** Syntax: save models
+- =torch.save(model.state_dict(), "FILE.pth")=
+** Syntax: load models
+- =model.load_state_dict(torch.load("FILE.pth"))=
+
+* Summary                                                  :Reflect:Review:
+- Tensors, dataset & transforms
+  - Tensor attributes & operations
+  - Pre-built vs. custom datasets
+  - Compose multiple transforms
+- Build linear regression models
+  - Linear regression with multiple inputs/outputs.
+  - Use (batch/mini-batch) gradient descent to optimize loss functions.
+  - The optimization process depends on hyperparameters (e.g., learning rate) and is sensitive to the initialization.
+  - =w= updates slopes, whereas =b= updates displacements.
+  - BGD vs. SGD+Data loader (with chosen batch sizes)
+    - SGD can be applied to large datasets to fit limited memory storage.
+    - However, SGD may encounter sudden loss jumps during training. 
+  - Use the MSE loss function
+  - Use the SGD optimizer
+  - Using validation data to determine hyperparameters.
+- Build neural network models for image classification
+  - Use pre-built MINST dataset
+  - Use cross-entropy loss function
+  - Use Adam optimizer
+  - Save and load models
