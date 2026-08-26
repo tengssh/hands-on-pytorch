@@ -1,0 +1,376 @@
+# -*- mode: org -*-
+# -*- coding: utf-8 -*-
+#+TITLE:       Neural networks with PyTorch
+#+AUTHOR:      tengssh
+#+LANGUAGE:    en
+#+STARTUP:     indent
+#+TAGS: Preview(P) Questions(Q) Read(R) Recite(T) Reflect(F) Review(V)
+#+TAGS: Code(C) Visualization(V) noexport(n)
+#+OPTIONS: toc:3
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport inlineimages
+#+COLUMNS: %25ITEM %TODO %3PRIORITY %TAGS
+#+PROPERTY: header-args:python :async yes :python .pixi/envs/default/bin/python3  
+
+* Subject: Neural networks with PyTorch
+** Resources
+- https://cognitiveclass.ai/courses/build-a-neural-network-with-pytorch
+- https://cognitiveclass.ai/courses/convolutional-neural-networks-with-pytorch
+- https://cognitiveclass.ai/courses/classification-with-pytorch
+** Keywords
+- Machine learning
+- Neural networks
+- Convolutional neural networks
+- Linear regression
+- Classification
+- Python
+  - PyTorch
+** Time duration: 8.5 hrs
+- 2026.08.20: 2 hrs
+- 2026.08.21: 1 hr
+- 2026.08.24: 2 hrs
+- 2026.08.25: 1.5 hrs
+- 2026.08.26: 2 hrs
+** Prerequisites
+#+begin_src shell :results output :exports both
+cat pixi.toml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[workspace]
+channels = ["conda-forge"]
+name = "hands-on-pytorch"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.11.*"
+pytorch = ">=2.13.0,<3"
+torchvision = ">=0.28.0,<0.29"
+numpy = ">=2.4.6,<3"
+matplotlib = ">=3.11.1,<4"
+pandas = ">=3.0.5,<4"
+#+end_example
+
+* Notes                                                                :Read:
+** 2026.08.20
+*** Activation functions
+#+begin_src python :results output :session *python* :exports both
+import torch
+
+x = torch.tensor([-100, 100]).float()
+print(torch.sigmoid(x), torch.nn.Sigmoid()(x))
+print(torch.tanh(x), torch.nn.Tanh()(x))
+print(torch.relu(x), torch.nn.ReLU()(x))
+#+end_src
+
+#+RESULTS:
+: tensor([0., 1.]) tensor([0., 1.])
+: tensor([-1.,  1.]) tensor([-1.,  1.])
+: tensor([  0., 100.]) tensor([  0., 100.])
+
+** 2026.08.21
+*** Initialization
+#+begin_src python :results output :session *python* :exports both
+import torch
+from torch import nn
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :results output :session *python* :exports both
+model = nn.Linear(3, 1)
+print(model.state_dict())
+model.weight.data.uniform_(1, 2)
+print(model.state_dict())
+nn.init.xavier_uniform_(model.weight)
+print(model.state_dict())
+nn.init.kaiming_uniform_(model.weight, nonlinearity = 'relu')
+print(model.state_dict())
+#+end_src
+
+#+RESULTS:
+: OrderedDict([('weight', tensor([[ 0.3601, -0.4241, -0.0822]])), ('bias', tensor([0.3317]))])
+: OrderedDict([('weight', tensor([[1.4787, 1.2968, 1.7425]])), ('bias', tensor([0.3317]))])
+: OrderedDict([('weight', tensor([[-0.6813,  1.0603,  1.1536]])), ('bias', tensor([0.3317]))])
+: OrderedDict([('weight', tensor([[-0.9049, -0.4625, -0.3500]])), ('bias', tensor([0.3317]))])
+
+** 2026.08.24
+*** Convolutional Neural Network (CNN)
+**** Import libraries
+#+begin_src python :results output :session *python* :exports both
+import torch
+from torch import nn
+#+end_src
+
+#+RESULTS:
+**** Convolution (2D)
+#+begin_src python :results output :session *python* :exports both
+conv2d = nn.Conv2d(in_channels=1, out_channels=1,
+                   kernel_size=3, stride=2, padding=1)
+print(conv2d)
+print(conv2d.state_dict())
+#+end_src
+
+#+RESULTS:
+: Conv2d(1, 1, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+: OrderedDict([('weight', tensor([[[[ 0.1200,  0.0563, -0.2896],
+:           [-0.3204, -0.0502,  0.3332],
+:           [-0.2268,  0.0366,  0.2470]]]])), ('bias', tensor([0.0012]))])
+
+#+begin_src python :results output :session *python* :exports both
+img = torch.ones(1, 6, 6)
+print(conv2d(img))
+print(conv2d(img).shape)
+#+end_src
+
+#+RESULTS:
+: tensor([[[ 0.5679,  0.0207,  0.0207],
+:          [ 0.3346, -0.0925, -0.0925],
+:          [ 0.3346, -0.0925, -0.0925]]], grad_fn=<SqueezeBackward1>)
+: torch.Size([1, 3, 3])
+**** Max pooling (2D)
+#+begin_src python :results output :session *python* :exports both
+torch.manual_seed(0)
+img = torch.randn(1, 4, 4)
+print(img)
+activation = nn.ReLU()
+print(activation(img))
+maxpool0 = nn.MaxPool2d(2)
+print(maxpool0(img))
+maxpool1 = nn.MaxPool2d(2, stride=1)
+print(maxpool1(img))
+#+end_src
+
+#+RESULTS:
+#+begin_example
+tensor([[[-1.1258, -1.1524, -0.2506, -0.4339],
+         [ 0.8487,  0.6920, -0.3160, -2.1152],
+         [ 0.3223, -1.2633,  0.3500,  0.3081],
+         [ 0.1198,  1.2377,  1.1168, -0.2473]]])
+tensor([[[0.0000, 0.0000, 0.0000, 0.0000],
+         [0.8487, 0.6920, 0.0000, 0.0000],
+         [0.3223, 0.0000, 0.3500, 0.3081],
+         [0.1198, 1.2377, 1.1168, 0.0000]]])
+tensor([[[ 0.8487, -0.2506],
+         [ 1.2377,  1.1168]]])
+tensor([[[ 0.8487,  0.6920, -0.2506],
+         [ 0.8487,  0.6920,  0.3500],
+         [ 1.2377,  1.2377,  1.1168]]])
+#+end_example
+
+** 2026.08.25
+*** Classification
+**** Logistic regression
+#+begin_src python :results output :session *python* :exports both
+import torch
+
+z = torch.arange(-1, 1, 1).view(-1, 1)
+print(torch.sigmoid(z))
+print(torch.nn.Sigmoid()(z))
+#+end_src
+
+#+RESULTS:
+: tensor([[0.2689],
+:         [0.5000]])
+: tensor([[0.2689],
+:         [0.5000]])
+
+** 2026.08.26
+*** Cross-entropy loss
+#+begin_src python :results output :session *python* :exports both
+import torch
+
+x = torch.tensor([-2, -1, 0, 1, 2]).float()
+y = torch.tensor([0, 0, 0, 1, 1]).float()
+yhat = torch.sigmoid(x)
+
+f_cel = lambda yhat, y: -1 * torch.mean(y * torch.log(yhat) + (1-y) * torch.log(1 - yhat))
+print(f_cel(yhat, y))
+print(torch.nn.BCELoss()(yhat, y))
+#+end_src
+
+#+RESULTS:
+: tensor(0.3147)
+: tensor(0.3147)
+*** Softmax
+#+begin_src python :results output :session *python* :exports both
+from torch import nn
+
+raw = [[1, 3, 2], [10, 0, 1], [0, 0, 7]]
+data = torch.tensor(raw).float()
+# max, argmax
+num_max, i_argmax = data.max(1)
+print(num_max)
+print(i_argmax)
+
+f_softmax = lambda v: torch.exp(v)/torch.sum(torch.exp(v))
+print(f_softmax(data[0, :]))
+print(f_softmax(data[1, :]))
+print(f_softmax(data[2, :]))
+print(nn.Softmax(dim = -1)(data))
+#+end_src
+
+#+RESULTS:
+: tensor([ 3., 10.,  7.])
+: tensor([1, 0, 2])
+: tensor([0.0900, 0.6652, 0.2447])
+: tensor([9.9983e-01, 4.5392e-05, 1.2339e-04])
+: tensor([9.1022e-04, 9.1022e-04, 9.9818e-01])
+: tensor([[9.0031e-02, 6.6524e-01, 2.4473e-01],
+:         [9.9983e-01, 4.5392e-05, 1.2339e-04],
+:         [9.1022e-04, 9.1022e-04, 9.9818e-01]])
+
+* Cue                                                      :Questions:Recite:
+** Snippet of neural networks
+#+begin_src python
+from torch import nn
+
+#1
+class NN(nn.Module):
+    def __init__(self, INPUT_SIZE, HIDDEN1_SIZE, HIDDEN2_SIZE, OUTPUT_SIZE):
+        super(NN, self).__init__()
+        self.layer1 = nn.Linear(INPUT_SIZE, HIDDEN_SIZE)
+        self.layer2 = nn.Linear(HIDDEN1_SIZE, HIDDEN2_SIZE)
+        self.layer3 = nn.Linear(HIDDEN2_SIZE, OUTPUT_SIZE)
+
+    def forward(self, x):
+        midput1 = ACTIVATION(self.layer1(x))
+        midput2 = ACTIVATION(self.layer2(midput1))
+        output = self.layer3(midput2)
+        return output
+
+model = NN(INPUT_SIZEe, HIIDDEN1_SIZE, HIDDEN2_SIZE, OUTPUT_SIZE)
+
+#2
+model = nn.Sequential(
+    nn.Linear(INPUT_SIZE, HIDDEN1_SIZE),
+    ACTIVATION(),
+    nn.Linear(HIDDEN_SIZE1, HIDDEN2_SIZE)
+    ACTIVATION(),
+    nn.Linear(HIDDEN_SIZE2, OUTPUT_SIZE)
+)
+
+#3
+class DNN(nn.Module):
+    def __init__(self, L_list):
+        super(DNN, self).__init__()
+        self.layers = nn.ModuleList()
+        for INPUT_SIZE, OUTPUT_SIZE in zip (L_list[:-1], L_list[1:]):
+            self.layers.append(nn.Linear(INPUT_SIZE, OUTPUT_SIZE))
+
+    def forward(self, INPUT):
+        OUTPUT = INPUT
+        for i, layer in enumerate(self.layers):
+            if i < len(self.layers - 1:
+                OUTPUT = ACTIVATION(layer(OUTPUT))
+            else:
+                OUTPUT = layer(OUTPUT)
+        return OUTPUT
+
+model = DNN([INPUT_SIZE, HIDDEN1_SIZE, ..., OUTPUT_SIZE])
+#+end_src
+** Syntax: activation functions
+- =nn.Sigmoid()=: (0, 1)
+- =nn.Tanh()=: (-1, 1)
+- =nn.ReLU()=: [0, inf)
+** Syntax: loss functions
+- =nn.BCELoss()= (binary cross-entropy)
+- =nn.CrossEntropyLoss()= (multi-class cross-entropy)
+** Issues of overfitting & underfitting
+- Overfitting: model is too complex for the data (e.g., too many neurons)
+- Underfitting: model cannot capture the complexity of the data (e.g., too few neurons)
+** Issues of sigmoid & tanh
+- Vanishing gradients
+** Solutions to overfitting
+- Use validation
+- More data
+- Use regularization
+** Definition of accuracy
+- accuracy = correct predictions / total predictions
+** The math behind backpropagation
+- The chain rule
+** Syntax: dropout
+- =nn.Dropout(p = dropout_ratio)(nn.Linear(INPUT_SIZE, OUTPUT_SIZE)(INPUT))=
+** Purpose of dropout
+- Prevent overfitting on noisy data
+** When to use dropout?
+- When the loss for training data is smaller than validation data.
+** Training mode vs. Evaluation mode
+|                     | =model.train()= | =model.eval()= |
+| dropout             | activated     | deactivated  |
+| batch normalization | activated     | deactivated  |
+** How to initialize weights?
+- Random initialization to avoid all neurons getting stuck at the same value due to the same gradients.
+- Avoid using extreme values, as gradients may vanish there.
+  - Scale the weights of each neuron inversely proportional to the total number of neurons.
+** Syntax: uniform initialization
+- =nn.Linear(INPUT_SIZE, OUTPUT_SIZE).weight.data.uniform_(lo, hi)=
+** Syntax: Xavier initialization
+- =nn.init.xavier_uniform_(nn.Linear(INPUT_SIZE, OUTPUT_SIZE).weight)=
+** Syntax: He initialization
+- =nn.init.kaiming_uniform_(nn.Linear(INPUT_SIZE, OUTPUT_SIZE).weight, nonlinearity = 'relu')=
+** Syntax: momentum
+- =torch.optim.SGD(w.parameters(), lr = 0.01, momentum = 0.1)=
+** Purpose of momentum
+- To avoid getting stuck at saddle points or local minima.
+** Syntax: batch normalization
+- 1D: =nn.BatchNorm1d(OUTPUT_SIZE)(nn.Linear(INPUT_SIZE, OUTPUT_SIZE)(INPUT))=
+- 2D: =nn.BatchNorm2d(out_channels)(nn.Conv2d(in_channels, out_channels, kernel_size)(INPUT))=
+** Purposes of batch normalization
+- Smooth optimization landscape
+- Enable higher learning rates
+- No need to use dropout (each batch introduces noise as a form of regularization)
+- No need for biases
+** The structure of CNN
+- Convolutional layers
+  - Convolution
+  - Activation
+  - Max pooling
+- Fully connected layer
+** Syntax: CNN (2D)
+- =nn.Conv2D(in_channels, out_channels, kernel_size)=
+** Size of CNN output (O) given input (I), kernel (K), stride (S), padding (P)
+- O = (I + P*2 - K)/S + 1
+** Total number of kenerls
+- Input channels * Output channels
+** Syntax: max pooling (2D)
+- =nn.MaxPool2d(kernel_size, [stride])=
+** Purpose of max pooling
+- Reduce spatial dimensions of feature maps while retaining the most dominant features
+** Syntax: pretrained models
+#+begin_src python
+from torchvision.models.resnet import resnet18, ResNet18_Weights
+model = resnet18(weights=ResNet18_Weights.DEFAULT)
+#+end_src
+** Syntax: specify device
+- =device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")=
+- =model.to(device)=
+** Definition of cross-entropy loss
+- The negative log-likelihood of the predicted class probabilities.
+- =-1 * torch.mean(y * torch.log(yhat) + (1-y) * torch.log(1 - yhat))=
+** Definition of softmax
+- =exp(z_i)/(\sum_j exp(z_j))=
+  
+* Summary                                                    :Reflect:Review:
+- Activation functions
+  - Use non-linear transformation to learn complex decision boundaries.
+  - Some activation functions suffer from vanishing gradients (e.g., sigmoid, tanh)
+- Underfitting vs. Overfitting  
+  - While too few neurons may cause underfitting, too many neurons may cause overfitting.
+  - Use more hidden layers instead of more neurons on single layer to prevent overfitting.
+  - Dropout can be used to mitigate overfitting.
+  - Batch normalization is an alternative form of regularization.
+- Training tips
+  - Initialization matters.
+  - Use momentum to address getting stuck at saddle points of local minima.
+- Convolutional neural networks
+  - Use convolution layers to capture complex features.
+  - Max pooling is used to reduce spatial dimensionality while preserving the most prominent features.
+- Classification
+  - Use the sigmoid function instead of a step function to ensure a smooth cost surface.
+  - Cross-entropy loss is preferred over MSE loss for classification, as it avoids getting stuck in a flat cost surface that can occur with MSE.
+  - Use softmax to calculate the predicted probabilities of each class.
