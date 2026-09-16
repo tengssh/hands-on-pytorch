@@ -499,7 +499,9 @@ model.fc = Linear(512, n_output)
 - Sequential memory
 ** Architecture of LSTMs
 - Input gate
+  - Use =tanh= to scale data to [-1, 1]
 - Forget gate
+  - Use =sigmoid= to regulate: (0) forget, (1) remember
 - Output gate
 ** Syntax: LSTM in PyTorch
 - =OUTPUT, HIDDEN = torch.nn.LSTM(INPUT_SIZEE, HIDDEN_SIZE)(INPUT, HIDDEN)=
