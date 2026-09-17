@@ -1,0 +1,816 @@
+# -*- mode: org -*-
+# -*- coding: utf-8 -*-
+#+TITLE:       PyTorch exercise 1
+#+AUTHOR:      tengssh
+#+LANGUAGE:    en
+#+STARTUP:     indent
+#+TAGS: Text(T) Code(C) Visualization(V) Protocol(P) noexport(n)
+#+OPTIONS: toc:3
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport inlineimages
+#+COLUMNS: %25ITEM %TODO %3PRIORITY %TAGS
+#+PROPERTY: header-args:shell :var VARIABLE="VALUE" :results output
+#+PROPERTY: header-args:python :async yes :python /opt/python/bin/python3 
+
+* Project overview
+** Objective (Who/When/Why)
+The goal is to (M/A)
+- predict time-series data
+by (T)
+- [W38]20260918
+because (R)
+- useful for dynamic data prediction
+** Key Results (What/Where/How)
+To be done (S)
+*** DONE train a LSTM model to predict the sunspot number
+CLOSED: [2026-09-17 Thu 23:27]
+*** DONE Save and reuse model
+CLOSED: [2026-09-17 Thu 23:36]
+*** Upload artifacts (e.g., GitHub, Figshare, Zenodo)
+* Resources
+- <<SunspotNumber>> [[https://www.sidc.be/SILSO/datafiles][Sunspot Number]], WDC-SILSO, Royal Observatory of Belgium, Brussels, DOI: https://doi.org/10.24414/qnza-ac80
+- https://docs.pytorch.org/docs/2.13/generated/torch.nn.LSTM.html
+* Journal
+** 2026.09.16 11:23                                               :noexport:
+*** Environment
+**** Prerequisites
+#+begin_src shell :results output :exports both
+cat ../pixi.toml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[workspace]
+channels = ["conda-forge"]
+name = "hands-on-pytorch"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.11.*"
+pytorch = ">=2.13.0,<3"
+torchvision = ">=0.28.0,<0.29"
+numpy = ">=2.4.6,<3"
+matplotlib = ">=3.11.1,<4"
+pandas = ">=3.0.5,<4"
+requests = ">=2.34.2,<3"
+tqdm = ">=4.70.0,<5"
+scikit-learn = ">=1.9.0,<2"
+#+end_example
+
+*** Actions                                                      :Protocol:
+**** Load data from [[SunspotNumber]]                                   :Code:
+#+begin_src python :results output :session *python* :exports both
+import pandas as pd
+
+url = "https://www.sidc.be/SILSO/DATA/SN_y_tot_V2.0.txt"
+col_positions = [(0, 6), (8, 13), (14, 19), (21, 26), (27, 28)]
+col_names = ["Year", "Sunspot_Number", "Std_Dev", "Num_Observations", "Definitive_Marker"]
+df = pd.read_fwf(url, colspecs=col_positions, names=col_names)
+print(df.head())
+print(df.tail())
+#+end_src
+
+#+RESULTS:
+#+begin_example
+     Year  Sunspot_Number  Std_Dev  Num_Observations  Definitive_Marker
+0  1700.5             8.3     -1.0                -1                NaN
+1  1701.5            18.3     -1.0                -1                NaN
+2  1702.5            26.7     -1.0                -1                NaN
+3  1703.5            38.3     -1.0                -1                NaN
+4  1704.5            60.0     -1.0                -1                NaN
+       Year  Sunspot_Number  Std_Dev  Num_Observations  Definitive_Marker
+321  2021.5            29.6      7.9             15233                NaN
+322  2022.5            83.2     14.2             15258                NaN
+323  2023.5           125.5     19.2             13286                NaN
+324  2024.5           154.7     22.0             12265                NaN
+325  2025.5           123.2     17.8             12473                NaN
+#+end_example
+
+**** Split data                                                     :Code:
+#+begin_src python :results output :session *python* :exports both
+import torch
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MinMaxScaler
+
+class Sunspot_Number(Dataset):
+    def __init__(self, df=None, transform=None):
+        self._year = torch.tensor(df["Year"].to_numpy().reshape(-1, 1))
+        if transform is not None:
+            _data = transform(df["Sunspot_Number"].to_numpy().reshape(-1, 1))
+            self._sunspot = torch.tensor(_data)
+        else:
+            self._sunspot = torch.tensor(df["Sunspot_Number"].to_numpy())
+        self.len = self._sunspot.shape[0]
+
+    def __getitem__(self, index: int):
+        return self._year[index], self._sunspot[index]
+
+    def __len__(self):
+        return self.len
+
+def split_ts_data(data, p_test, window_size=1):
+    """ Split time-series data
+
+    Params
+    ------
+    data: DataFrame
+        full dataset
+    p_test: float
+        data partition for test
+    window_size: int
+        size of data for each training batch
+
+    Returns
+    -------
+    train_seq, test_seq: list
+        splitted datasets
+    """
+    tot_seq = []
+    for i in range(len(data) - window_size):
+        in_seq = data[i:i+window_size]
+        out_target = data[i+window_size]
+        tot_seq.append((in_seq, out_target))
+    n_tot = len(tot_seq)
+    n_test = int(n_tot * p_test)
+    n_train = n_tot - n_test
+    train_seq = tot_seq[:n_train]
+    test_seq = tot_seq[n_train:]
+    return train_seq, test_seq
+
+transform = MinMaxScaler(feature_range=(0, 1))
+data = Sunspot_Number(df=df, transform=transform.fit_transform)
+train_data, test_data = split_ts_data(data,
+                                      p_test = 0.2,
+                                      window_size = 11)
+
+print('Total data points:', data.len)
+print(data[:3])
+print('Train data number:', len(train_data))
+print(train_data[0])
+print('Test data number:', len(test_data))
+print(test_data[0])
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Total data points: 326
+(tensor([[1700.5000],
+        [1701.5000],
+        [1702.5000]], dtype=torch.float64), tensor([[0.0308],
+        [0.0680],
+        [0.0991]], dtype=torch.float64))
+Train data number: 252
+((tensor([[1700.5000],
+        [1701.5000],
+        [1702.5000],
+        [1703.5000],
+        [1704.5000],
+        [1705.5000],
+        [1706.5000],
+        [1707.5000],
+        [1708.5000],
+        [1709.5000],
+        [1710.5000]], dtype=torch.float64), tensor([[0.0308],
+        [0.0680],
+        [0.0991],
+        [0.1422],
+        [0.2228],
+        [0.3591],
+        [0.1794],
+        [0.1237],
+        [0.0620],
+        [0.0494],
+        [0.0186]], dtype=torch.float64)), (tensor([1711.5000], dtype=torch.float64), tensor([0.], dtype=torch.float64)))
+Test data number: 63
+((tensor([[1952.5000],
+        [1953.5000],
+        [1954.5000],
+        [1955.5000],
+        [1956.5000],
+        [1957.5000],
+        [1958.5000],
+        [1959.5000],
+        [1960.5000],
+        [1961.5000],
+        [1962.5000]], dtype=torch.float64), tensor([[0.1671],
+        [0.0746],
+        [0.0245],
+        [0.2013],
+        [0.7453],
+        [1.0000],
+        [0.9718],
+        [0.8359],
+        [0.5904],
+        [0.2837],
+        [0.1983]], dtype=torch.float64)), (tensor([1963.5000], dtype=torch.float64), tensor([0.1482], dtype=torch.float64)))
+#+end_example
+
+**** Build a LSTM model                                             :Code:
+#+begin_src python :results output :session *python* :exports both
+from torch import nn
+
+torch.manual_seed(1)
+
+class LSTM(nn.Module):
+    def __init__(self, input_size=1, hidden_size=20, output_size=1):
+        super(LSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.linear = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x_seq):
+        lstm_out, _ = self.lstm(x_seq)
+        out = self.linear(lstm_out[:, -1, :])
+        return out
+
+model = LSTM(1, 50, 1).to(torch.float64)
+print(model)
+f_loss = nn.MSELoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
+#+end_src
+
+#+RESULTS:
+: LSTM(
+:   (lstm): LSTM(1, 50, batch_first=True)
+:   (linear): Linear(in_features=50, out_features=1, bias=True)
+: )
+
+**** Train the model                                                :Code:
+#+begin_src python :results output :session *python* :exports both
+import numpy as np
+
+model.train()
+train_dataloader = DataLoader(dataset=train_data, batch_size=1)
+
+n_epoch = 101
+loss_epoch = []
+for i in range(n_epoch):
+    loss_train = []
+    for (_, seq), (_, target) in train_dataloader:
+        optimizer.zero_grad()
+        n_spot_pred = model(seq)
+        loss = f_loss(n_spot_pred, target)
+        loss.backward()
+        optimizer.step()
+        loss_train.append(loss.item())
+    mean_loss = np.mean(loss_train)
+    loss_epoch.append(mean_loss)
+    if i%10==0:
+        print(f'Epoch {i}: mean loss = {mean_loss}')
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Epoch 0: mean loss = 0.055888762853161494
+Epoch 10: mean loss = 0.033027914371863525
+Epoch 20: mean loss = 0.012624438264152079
+Epoch 30: mean loss = 0.01089644098493545
+Epoch 40: mean loss = 0.010189992522342536
+Epoch 50: mean loss = 0.00967021037204965
+Epoch 60: mean loss = 0.009259040251050187
+Epoch 70: mean loss = 0.008914033978281118
+Epoch 80: mean loss = 0.008611588532845795
+Epoch 90: mean loss = 0.008339536287165852
+Epoch 100: mean loss = 0.008093436959707767
+#+end_example
+
+**** Test the model                                                 :Code:
+#+begin_src python :results output :session *python* :exports both
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+model.eval()
+test_dataloader = DataLoader(dataset=test_data, batch_size=1)
+
+res_list = []
+year_list = []
+for (_, seq), (year, target) in test_dataloader:
+    with torch.no_grad():
+        res_list.append((model(seq).item(), target.item()))
+        year_list.append(year.item()-0.5)
+res = transform.inverse_transform(np.array(res_list))
+mae = mean_absolute_error(res[:,0], res[:,1])
+rmse = np.sqrt(mean_squared_error(res[:,0], res[:,1]))
+print(f'MAE = {mae}, RMSE = {rmse}')
+print(res)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+MAE = 27.143088139356838, RMSE = 32.05954834945235
+[[ 41.18367527  39.9       ]
+ [ 59.78888663  15.        ]
+ [ 50.17000765  22.        ]
+ [ 74.90562436  66.8       ]
+ [134.33283034 132.9       ]
+ [190.79837837 150.        ]
+ [176.70255091 149.4       ]
+ [151.74743108 148.        ]
+ [139.59013707  94.4       ]
+ [ 80.51395199  97.6       ]
+ [ 98.21214863  54.1       ]
+ [ 60.32828483  49.2       ]
+ [ 72.43057181  22.5       ]
+ [ 53.49102136  18.4       ]
+ [ 62.41629947  39.3       ]
+ [ 97.91720521 131.        ]
+ [196.48963493 220.1       ]
+ [245.35279197 218.9       ]
+ [203.80433466 198.9       ]
+ [162.66538014 162.4       ]
+ [123.4547235   91.        ]
+ [ 56.94620513  60.5       ]
+ [ 47.95761577  20.6       ]
+ [ 29.47114124  14.8       ]
+ [ 51.70255258  33.9       ]
+ [ 93.54403195 123.        ]
+ [193.34350171 211.1       ]
+ [243.28751722 191.8       ]
+ [185.37438583 203.3       ]
+ [173.42163837 133.        ]
+ [ 98.49290069  76.1       ]
+ [ 47.61462596  44.9       ]
+ [ 39.73098367  25.1       ]
+ [ 46.32876077  11.6       ]
+ [ 52.41231322  28.9       ]
+ [ 88.6537104   88.3       ]
+ [158.31702747 136.3       ]
+ [186.26185948 173.9       ]
+ [192.23227031 170.4       ]
+ [163.65987712 163.6       ]
+ [145.00316908  99.3       ]
+ [ 76.489287    65.3       ]
+ [ 54.14963423  45.8       ]
+ [ 56.64982434  24.7       ]
+ [ 52.75618776  12.6       ]
+ [ 54.91654379   4.2       ]
+ [ 56.42570483   4.8       ]
+ [ 64.87913413  24.9       ]
+ [ 92.82316183  80.8       ]
+ [152.50190553  84.5       ]
+ [132.88602208  94.        ]
+ [125.28899439 113.3       ]
+ [136.66218482  69.8       ]
+ [ 79.11185054  39.8       ]
+ [ 50.30029364  21.7       ]
+ [ 46.69770201   7.        ]
+ [ 46.89342136   3.6       ]
+ [ 57.04914571   8.8       ]
+ [ 71.37059514  29.6       ]
+ [ 97.78501419  83.2       ]
+ [152.517798   125.5       ]
+ [174.59877714 154.7       ]
+ [176.26724566 123.2       ]]
+#+end_example
+
+**** Visualize the results                            :Code:Visualization:
+#+begin_src python :results graphics output drawer :session *python* :exports both
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+
+def plot_data(pred_data, target_data, year_data, fig_out = None):
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot(year_data, pred_data, 'r-', label='prediction')
+    ax.plot(year_data, target_data, 'k.:', label='target')
+    ax.set_ylim([0, None])
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Number of sunspots')
+    ax.legend()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    if fig_out is None:
+        fig_out = 'fig_sunspots.png'
+    fig.savefig(fig_out, dpi=300)
+    print(f"#+ATTR_ORG: :width 500")
+    print(f"[[file:{fig_out}]]")
+    plt.close('all')
+
+plot_data(res[:, 0], res[:, 1], year_list)
+#+end_src
+
+#+RESULTS:
+:results:
+#+ATTR_ORG: :width 500
+[[file:fig_sunspots.png]]
+:end:
+
+*** Milestones                                                       :Text:
+- Create dataloader for time-series data
+- Train LSTM models using MSE and SGD
+
+** 2026.09.17 21:30
+*** Environment
+**** Prerequisites
+#+begin_src shell :results output :exports both
+cat ../pixi.toml
+#+end_src
+
+#+RESULTS:
+#+begin_example
+[workspace]
+channels = ["conda-forge"]
+name = "hands-on-pytorch"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.11.*"
+pytorch = ">=2.13.0,<3"
+torchvision = ">=0.28.0,<0.29"
+numpy = ">=2.4.6,<3"
+matplotlib = ">=3.11.1,<4"
+pandas = ">=3.0.5,<4"
+requests = ">=2.34.2,<3"
+tqdm = ">=4.70.0,<5"
+scikit-learn = ">=1.9.0,<2"
+#+end_example
+
+*** Actions                                                      :Protocol:
+**** Load data from [[SunspotNumber]]                                   :Code:
+#+begin_src python :results output :session *python* :exports both
+import pandas as pd
+
+url = "https://www.sidc.be/SILSO/DATA/SN_y_tot_V2.0.txt"
+col_positions = [(0, 6), (8, 13), (14, 19), (21, 26), (27, 28)]
+col_names = ["Year", "Sunspot_Number", "Std_Dev", "Num_Observations", "Definitive_Marker"]
+df = pd.read_fwf(url, colspecs=col_positions, names=col_names)
+print(df.head())
+print(df.tail())
+#+end_src
+
+#+RESULTS:
+#+begin_example
+     Year  Sunspot_Number  Std_Dev  Num_Observations  Definitive_Marker
+0  1700.5             8.3     -1.0                -1                NaN
+1  1701.5            18.3     -1.0                -1                NaN
+2  1702.5            26.7     -1.0                -1                NaN
+3  1703.5            38.3     -1.0                -1                NaN
+4  1704.5            60.0     -1.0                -1                NaN
+       Year  Sunspot_Number  Std_Dev  Num_Observations  Definitive_Marker
+321  2021.5            29.6      7.9             15233                NaN
+322  2022.5            83.2     14.2             15258                NaN
+323  2023.5           125.5     19.2             13286                NaN
+324  2024.5           154.7     22.0             12265                NaN
+325  2025.5           123.2     17.8             12473                NaN
+#+end_example
+
+**** Split data                                                     :Code:
+#+begin_src python :results output :session *python* :exports both
+import torch
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MinMaxScaler
+
+class Sunspot_Number(Dataset):
+    def __init__(self, df=None, transform=None):
+        self._year = torch.tensor(df["Year"].to_numpy().reshape(-1, 1))
+        if transform is not None:
+            _data = transform(df["Sunspot_Number"].to_numpy().reshape(-1, 1))
+            self._sunspot = torch.tensor(_data)
+        else:
+            self._sunspot = torch.tensor(df["Sunspot_Number"].to_numpy())
+        self.len = self._sunspot.shape[0]
+
+    def __getitem__(self, index: int):
+        return self._year[index], self._sunspot[index]
+
+    def __len__(self):
+        return self.len
+
+def split_ts_data(data, p_test, window_size=1):
+    """ Split time-series data
+
+    Params
+    ------
+    data: DataFrame
+        full dataset
+    p_test: float
+        data partition for test
+    window_size: int
+        size of data for each training batch
+
+    Returns
+    -------
+    train_seq, test_seq: list
+        splitted datasets
+    """
+    tot_seq = []
+    for i in range(len(data) - window_size):
+        in_seq = data[i:i+window_size]
+        out_target = data[i+window_size]
+        tot_seq.append((in_seq, out_target))
+    n_tot = len(tot_seq)
+    n_test = int(n_tot * p_test)
+    n_train = n_tot - n_test
+    train_seq = tot_seq[:n_train]
+    test_seq = tot_seq[n_train:]
+    return train_seq, test_seq
+
+transform = MinMaxScaler(feature_range=(0, 1))
+data = Sunspot_Number(df=df, transform=transform.fit_transform)
+train_data, test_data = split_ts_data(data,
+                                      p_test = 0.2,
+                                      window_size = 11)
+
+print('Total data points:', data.len)
+print(data[:3])
+print('Train data number:', len(train_data))
+print(train_data[0])
+print('Test data number:', len(test_data))
+print(test_data[0])
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Total data points: 326
+(tensor([[1700.5000],
+        [1701.5000],
+        [1702.5000]], dtype=torch.float64), tensor([[0.0308],
+        [0.0680],
+        [0.0991]], dtype=torch.float64))
+Train data number: 252
+((tensor([[1700.5000],
+        [1701.5000],
+        [1702.5000],
+        [1703.5000],
+        [1704.5000],
+        [1705.5000],
+        [1706.5000],
+        [1707.5000],
+        [1708.5000],
+        [1709.5000],
+        [1710.5000]], dtype=torch.float64), tensor([[0.0308],
+        [0.0680],
+        [0.0991],
+        [0.1422],
+        [0.2228],
+        [0.3591],
+        [0.1794],
+        [0.1237],
+        [0.0620],
+        [0.0494],
+        [0.0186]], dtype=torch.float64)), (tensor([1711.5000], dtype=torch.float64), tensor([0.], dtype=torch.float64)))
+Test data number: 63
+((tensor([[1952.5000],
+        [1953.5000],
+        [1954.5000],
+        [1955.5000],
+        [1956.5000],
+        [1957.5000],
+        [1958.5000],
+        [1959.5000],
+        [1960.5000],
+        [1961.5000],
+        [1962.5000]], dtype=torch.float64), tensor([[0.1671],
+        [0.0746],
+        [0.0245],
+        [0.2013],
+        [0.7453],
+        [1.0000],
+        [0.9718],
+        [0.8359],
+        [0.5904],
+        [0.2837],
+        [0.1983]], dtype=torch.float64)), (tensor([1963.5000], dtype=torch.float64), tensor([0.1482], dtype=torch.float64)))
+#+end_example
+
+**** Build a LSTM model                                             :Code:
+#+begin_src python :results output :session *python* :exports both
+from torch import nn
+
+class LSTM(nn.Module):
+    def __init__(self, input_size=1, hidden_size=20, output_size=1):
+        super(LSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.linear = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x_seq):
+        lstm_out, _ = self.lstm(x_seq)
+        out = self.linear(lstm_out[:, -1, :])
+        return out
+#+end_src
+
+#+RESULTS:
+
+**** Train the model                                                :Code:
+#+begin_src python :results output :session *python* :exports both
+import numpy as np
+
+torch.manual_seed(1)
+
+model = LSTM(1, 50, 1).to(torch.float64)
+print(model)
+model.train()
+f_loss = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.00025)
+train_dataloader = DataLoader(dataset=train_data, batch_size=1)
+
+n_epoch = 101
+loss_epoch = []
+for i in range(n_epoch):
+    loss_train = []
+    for (_, seq), (_, target) in train_dataloader:
+        optimizer.zero_grad()
+        n_spot_pred = model(seq)
+        loss = f_loss(n_spot_pred, target)
+        loss.backward()
+        optimizer.step()
+        loss_train.append(loss.item())
+    mean_loss = np.mean(loss_train)
+    loss_epoch.append(mean_loss)
+    if i%10==0:
+        print(f'Epoch {i}: mean loss = {mean_loss}')
+#+end_src
+
+#+RESULTS:
+#+begin_example
+LSTM(
+  (lstm): LSTM(1, 50, batch_first=True)
+  (linear): Linear(in_features=50, out_features=1, bias=True)
+)
+Epoch 0: mean loss = 0.06871820310077682
+Epoch 10: mean loss = 0.017751433848025126
+Epoch 20: mean loss = 0.011935770719732834
+Epoch 30: mean loss = 0.009048341854287278
+Epoch 40: mean loss = 0.007493002044414628
+Epoch 50: mean loss = 0.006480455597884993
+Epoch 60: mean loss = 0.005901677133100747
+Epoch 70: mean loss = 0.005620812383848608
+Epoch 80: mean loss = 0.005444873528606513
+Epoch 90: mean loss = 0.00531390869101349
+Epoch 100: mean loss = 0.005204000495021313
+#+end_example
+
+#+begin_src
+lr = 0.001: MAE = 18.02205307060063, RMSE = 22.024377757964526
+lr = 0.002: MAE = 15.38871975290348, RMSE = 18.350615849147765
+lr = 0.0025: MAE = 15.004785843002768, RMSE = 18.166359707090443
+lr = 0.003: MAE = 15.004889457444817, RMSE = 18.39324400976374
+lr = 0.004: MAE = 15.614856200713698, RMSE = 19.338918964887085
+lr = 0.007: MAE = 17.62428835544642, RMSE = 22.27744152494101
+lr = 0.008: MAE = 19.05443094207511, RMSE = 23.639287409443316
+lr = 0.01: MAE = 19.35734121314356, RMSE = 24.300745987737923
+lr = 0.015: MAE = 21.510152809833325, RMSE = 30.691452774121466
+lr = 0.02: MAE = 23.18954869048178, RMSE = 32.55585761485981
+#+end_src
+
+**** Save the model                                                 :Code:
+#+begin_src python :results output :session *python* :exports both
+model_pth = "sunspots_lstm_v20260917.pth"
+#1 only weights
+#torch.save(model.state_dict(), model_pth)
+#2 full model
+torch.save(model, model_pth)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src shell :results output :exports both
+du -hs sunspots_lstm*.pth
+#+end_src
+
+#+RESULTS:
+: 88K	sunspots_lstm_v20260917.pth
+
+**** Test the model                                                 :Code:
+#+begin_src python :results output :session *python* :exports both
+model_pth = "sunspots_lstm_v20260917.pth"
+#1 load weights only
+#_model = LSTM(1, 100, 1).to(torch.float64)
+#_model.load_state_dict(torch.load(model_pth))
+#2 load full model
+_model = torch.load(model_pth, weights_only = False)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python :results output :session *python* :exports both
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+_model.eval()
+test_dataloader = DataLoader(dataset=test_data, batch_size=1)
+
+res_list = []
+year_list = []
+for (_, seq), (year, target) in test_dataloader:
+    with torch.no_grad():
+        res_list.append((_model(seq).item(), target.item()))
+        year_list.append(year.item()-0.5)
+res = transform.inverse_transform(np.array(res_list))
+mae = mean_absolute_error(res[:,0], res[:,1])
+rmse = np.sqrt(mean_squared_error(res[:,0], res[:,1]))
+print(f'MAE = {mae}, RMSE = {rmse}')
+print(res)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+MAE = 15.004785843002768, RMSE = 18.166359707090443
+[[ 27.54544222  39.9       ]
+ [ 33.05191868  15.        ]
+ [ 25.65193653  22.        ]
+ [ 74.41027102  66.8       ]
+ [138.73019916 132.9       ]
+ [179.53782252 150.        ]
+ [170.74133118 149.4       ]
+ [142.57220501 148.        ]
+ [106.26270164  94.4       ]
+ [ 64.01260779  97.6       ]
+ [ 68.37367385  54.1       ]
+ [ 26.8652841   49.2       ]
+ [ 48.2543285   22.5       ]
+ [ 26.28630071  18.4       ]
+ [ 48.51327736  39.3       ]
+ [ 91.07952073 131.        ]
+ [193.25323221 220.1       ]
+ [224.35587146 218.9       ]
+ [175.77719361 198.9       ]
+ [130.84971039 162.4       ]
+ [102.97522112  91.        ]
+ [ 60.95371829  60.5       ]
+ [ 33.46665286  20.6       ]
+ [ -4.49532061  14.8       ]
+ [ 48.0477612   33.9       ]
+ [105.54867939 123.        ]
+ [206.34343242 211.1       ]
+ [226.2735886  191.8       ]
+ [188.51945027 203.3       ]
+ [155.02645684 133.        ]
+ [ 93.14259038  76.1       ]
+ [ 51.37451074  44.9       ]
+ [ 20.80518067  25.1       ]
+ [ 15.3403885   11.6       ]
+ [ 40.0563382   28.9       ]
+ [ 90.83317951  88.3       ]
+ [157.08017793 136.3       ]
+ [171.51110643 173.9       ]
+ [181.56628888 170.4       ]
+ [145.91685369 163.6       ]
+ [108.70326078  99.3       ]
+ [ 66.58102311  65.3       ]
+ [ 39.19530911  45.8       ]
+ [ 26.6258559   24.7       ]
+ [ 27.54633196  12.6       ]
+ [ 40.24521558   4.2       ]
+ [ 40.10910699   4.8       ]
+ [ 44.66689372  24.9       ]
+ [ 69.82700782  80.8       ]
+ [123.23178427  84.5       ]
+ [115.30616189  94.        ]
+ [ 96.21475668 113.3       ]
+ [ 91.29018852  69.8       ]
+ [ 55.21492124  39.8       ]
+ [ 26.43761283  21.7       ]
+ [  8.98666053   7.        ]
+ [  7.10275438   3.6       ]
+ [ 31.98688337   8.8       ]
+ [ 47.97020214  29.6       ]
+ [ 70.48782527  83.2       ]
+ [123.21242249 125.5       ]
+ [145.47076667 154.7       ]
+ [137.10281156 123.2       ]]
+#+end_example
+
+**** Visualize the results                            :Code:Visualization:
+#+begin_src python :results graphics output drawer :session *python* :exports both
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+
+def plot_data(pred_data, target_data, year_data, fig_out = None):
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot(year_data, pred_data, 'r-', label='prediction')
+    ax.plot(year_data, target_data, 'k.--', label='target')
+    ax.set_ylim([0, None])
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Number of sunspots')
+    ax.legend(frameon=False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    if fig_out is None:
+        fig_out = 'fig_sunspots.png'
+    fig.savefig(fig_out, dpi=300)
+    print(f"#+ATTR_ORG: :width 500")
+    print(f"[[file:{fig_out}]]")
+    plt.close('all')
+
+plot_data(res[:, 0], res[:, 1], year_list)
+#+end_src
+
+#+RESULTS:
+:results:
+#+ATTR_ORG: :width 500
+[[file:fig_sunspots.png]]
+:end:
+
+*** Milestones                                                       :Text:
+- Train LSTM model using MSE and Adam
+- Fine-tune learning rate
+- Save & reload model
