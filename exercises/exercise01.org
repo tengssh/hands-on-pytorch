@@ -22,11 +22,12 @@ because (R)
 - useful for dynamic data prediction
 ** Key Results (What/Where/How)
 To be done (S)
-*** DONE train a LSTM model to predict the sunspot number
+*** DONE Train a LSTM model to predict the sunspot number
 CLOSED: [2026-09-17 Thu 23:27]
 *** DONE Save and reuse model
 CLOSED: [2026-09-17 Thu 23:36]
-*** Upload artifacts (e.g., GitHub, Figshare, Zenodo)
+*** DONE Upload artifacts (e.g., GitHub, Figshare, Zenodo)
+CLOSED: [2026-09-18 Fri 03:02]
 * Resources
 - <<SunspotNumber>> [[https://www.sidc.be/SILSO/datafiles][Sunspot Number]], WDC-SILSO, Royal Observatory of Belgium, Brussels, DOI: https://doi.org/10.24414/qnza-ac80
 - https://docs.pytorch.org/docs/2.13/generated/torch.nn.LSTM.html
@@ -808,6 +809,88 @@ plot_data(res[:, 0], res[:, 1], year_list)
 :results:
 #+ATTR_ORG: :width 500
 [[file:fig_sunspots.png]]
+:end:
+
+**** Make predictions                                      :Code:noexport:
+#+begin_src python :results graphics output drawer :session *python* :exports both :tangle predict_sunspots_15yrs.py
+import pandas as pd
+import torch
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MinMaxScaler
+
+#1 Load data
+url = "https://www.sidc.be/SILSO/DATA/SN_y_tot_V2.0.txt"
+col_positions = [(0, 6), (8, 13), (14, 19), (21, 26), (27, 28)]
+col_names = ["Year", "Sunspot_Number", "Std_Dev", "Num_Observations", "Definitive_Marker"]
+df = pd.read_fwf(url, colspecs=col_positions, names=col_names)
+
+class Sunspot_Number(Dataset):
+    def __init__(self, df=None, transform=None):
+        self._year = torch.tensor(df["Year"].to_numpy().reshape(-1, 1))
+        if transform is not None:
+            _data = transform(df["Sunspot_Number"].to_numpy().reshape(-1, 1))
+            self._sunspot = torch.tensor(_data)
+        else:
+            self._sunspot = torch.tensor(df["Sunspot_Number"].to_numpy())
+        self.len = self._sunspot.shape[0]
+
+    def __getitem__(self, index: int):
+        return self._year[index], self._sunspot[index]
+
+    def __len__(self):
+        return self.len
+
+transform = MinMaxScaler(feature_range=(0, 1))
+data = Sunspot_Number(df=df, transform=transform.fit_transform)
+
+#2 Load model
+model_pth = "sunspots_lstm_v20260917.pth"
+_model = torch.load(model_pth, weights_only = False)
+_model.eval()
+
+year_final, ns_final = data[-15:]
+spot_list = []
+year_list = []
+for y, ns in zip(year_final, ns_final):
+    spot_list.append(ns.item())
+    year_list.append(y.item()-0.5)
+
+#3 Predict 15+ years
+for i in range(15):
+    seq = torch.tensor(np.array(spot_list[-15:]).reshape(1, -1, 1))
+    ns_pred = _model(seq).detach().item()
+    spot_list.append(ns_pred)
+    year_list.append(year_list[-1]+1)
+nspot_list = transform.inverse_transform(np.array((spot_list,)))[0]
+
+#4 Plot results
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+
+def plot_data(pred_data, year_data, fig_out = None):
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot(year_data[:15], pred_data[:15], 'ko-', label='past')
+    ax.plot(year_data[15-1:], pred_data[15-1:], 'r-', label='future')
+    ax.set_ylim([0, None])
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Number of sunspots')
+    ax.legend(frameon=False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    fig.savefig(fig_out, dpi=300)
+    print(f"#+ATTR_ORG: :width 500")
+    print(f"[[file:{fig_out}]]")
+    plt.close('all')
+
+plot_data(nspot_list, year_list, 'fig_pred.png')
+#+end_src
+
+#+RESULTS:
+:results:
+#+ATTR_ORG: :width 500
+[[file:fig_pred.png]]
 :end:
 
 *** Milestones                                                       :Text:
