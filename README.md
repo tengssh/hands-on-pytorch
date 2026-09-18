@@ -14,9 +14,13 @@ This repository contains the study notes for learning PyTorch while taking the f
 
 ## Notes
 
-- [01-pytorch_getting_started.org](01-pytorch_getting_started.org)
-- [02-pytorch_neural_networks.org](02-pytorch_neural_networks.org)
-- [03-pytorch_projects.org](03-pytorch_projects.org)
+- [01-pytorch_getting_started.org](./notes/01-pytorch_getting_started.org)
+- [02-pytorch_neural_networks.org](./notes/02-pytorch_neural_networks.org)
+- [03-pytorch_projects.org](./notes/03-pytorch_projects.org)
+
+## Exercises
+
+- [exercise01.org](./exercises/exercise01.org)
 
 ## License
 
