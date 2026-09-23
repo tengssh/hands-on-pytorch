@@ -466,7 +466,7 @@ model = resnet18(weights=ResNet18_Weights.DEFAULT)
 ** Definition of softmax
 - =exp(z_i)/(\sum_j exp(z_j))=
 ** Syntax: =torchinfo=
-- =torchinfor.summary(MODEL, input_size)=
+- =torchinfo.summary(MODEL, input_size)=
 * Summary                                                    :Reflect:Review:
 - Activation functions
   - Use non-linear transformation to learn complex decision boundaries.
