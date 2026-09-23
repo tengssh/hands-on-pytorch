@@ -11,6 +11,7 @@ This repository contains the study notes for learning PyTorch while taking the f
 - https://cognitiveclass.ai/courses/launch-an-ai-hotdog-detector-as-a-serverless-python-app
 - https://cognitiveclass.ai/courses/deploy-a-computer-vision-app-in-a-serverless-environment
 - https://cognitiveclass.ai/courses/predict-stock-prices-with-lstm-in-pytorch
+- https://seaif-ms.github.io/DEEP-Inspection-Material-Science/
 
 ## Notes
 
